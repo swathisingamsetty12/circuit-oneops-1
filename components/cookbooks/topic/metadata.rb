@@ -16,6 +16,7 @@ attribute 'topicname',
           :format => {
               :help => 'Topic Name',
               :category => '1.Destination',
+              :editable => false,
              :order => 1,
           }
 
@@ -47,6 +48,7 @@ attribute 'permission',
           :format => {
             :help => 'User permissions. eg (username:permission). Valid values for permissions are R for READ, W for WRITE and RW ReadWrite',
             :category => '2.Permissions',
+            :pattern  => [["Read", "R"], ["Write", "W"], ["Read and Write", "RW"]] ,
             :order => 1
           }
 
@@ -56,8 +58,28 @@ attribute 'destinationpolicy',
           :default => "",
           :format => {
             :help => 'Define destination policy specifically for this topic',
-            :category => '3.DestinationPolicy',
+            :category => '3.Advanced',
             :order => 1
+          }
+
+attribute 'compositetopic',
+          :description => "Composite Topic Definition",
+          :data_type => "text",
+          :default => "",
+          :format => {
+            :help => 'Composite Topic Definition',
+            :category => '3.Advanced',
+            :order => 2
+          }
+
+attribute 'virtualdestination',
+          :description => "Virtual Topic Definition",
+          :data_type => "text",
+          :default => "",
+          :format => {
+            :help => 'Virtual Topic Definition',
+            :category => '3.Advanced',
+            :order => 3
           }
 
 recipe 'repair', 'Repairs ActiveMQ resource'

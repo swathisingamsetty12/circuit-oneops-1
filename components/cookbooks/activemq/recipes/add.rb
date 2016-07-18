@@ -24,7 +24,7 @@ version = node['activemq']['version']
 activemq_home = "#{node['activemq']['installpath']}/apache-activemq-#{version}"
 logpath="#{node['activemq']['logpath']}"
 
-tarball = "/activemq/#{version}/apache-activemq-#{version}-bin.tar.gz"
+tarball = "activemq/#{version}/apache-activemq-#{version}-bin.tar.gz"
 dest_file = "#{tmp}/apache-activemq-#{version}-bin.tar.gz"
 
 runasuser ="#{node['activemq']['runasuser']}"
@@ -50,13 +50,13 @@ config_ver_amqxml = "#{vMj+ '.' + vminoramq.to_s == '5.11' ? '5.11' :''}"
 Chef::Log.info("config_ver:  #{config_ver}")
 
 # Try component mirrors first, if empty try cloud mirrors, if empty use cookbook mirror attribute
-source_list = JSON.parse(node.activemq.mirrors).map! { |mirror| "#{mirror}/#{tarball}" }
+source_list = JSON.parse(node.activemq.mirrors).map { |mirror| "#{mirror}/#{tarball}" }
 if source_list.empty?
     cloud_name = node[:workorder][:cloud][:ciName]
     mirrors = JSON.parse(node[:workorder][:services][:mirror][cloud_name][:ciAttributes][:mirrors])
     source_list = mirrors['apache'].split(",").map { |mirror| "#{mirror}/#{tarball}" }
 end
-source_list = [node['activemq']['src_mirror']] if source_list.empty?
+source_list = ["#{node['activemq']['src_mirror']}/#{tarball}"] if source_list.empty?
 
 users=[]
 #usersstr=''
@@ -215,17 +215,6 @@ end
 
 # Add brokerusename and brokerpassword backward compatibilty
 
-template "#{activemq_home}/conf/credentials.properties" do
-    source 'credentials.properties.erb'
-    variables({
-        :adminusername => node[:activemq][:adminusername],
-        :adminpassword => node[:activemq][:adminpassword],
-        :brokerusername => node[:activemq][:brokerusername],
-        :brokerpassword => node[:activemq][:brokerpassword]
-    })
-    mode 0644
-end
-
 file "#{node['activemq']['enckeypath']}#{node['activemq']['enckey']}" do
     encpassword =Activemq::Helper::getencpasswordkey(node)
     content encpassword
@@ -263,16 +252,26 @@ ruby_block 'Encryption-Required' do
     only_if {node.activemq.pwdencyenabled == 'true' && ::File.exists?("#{node['activemq']['enckeypath']}#{node['activemq']['enckey']}")}
 end
 
-#get encrypted pwds and users[]
 ruby_block 'Encryption-Not-Required' do
   block do
-        node[:activemq][:adminencpwd]=node[:activemq][:adminpassword]
-        node[:activemq][:brokerencpwd]=node[:activemq][:brokerpassword]
-        JSON.parse(node[:activemq][:users]).each do |key,val|
-            encypwdusers["#{key}"] ="#{val}"
-        end
-  end
+    node[:activemq][:adminencpwd]=node[:activemq][:adminpassword]
+    JSON.parse(node[:activemq][:users]).each do |key,val|
+        encypwdusers["#{key}"] ="#{val}"
+     end
+    end
+  only_if {node.activemq.pwdencyenabled == 'false'}
+end
+
+template "#{activemq_home}/conf/credentials.properties" do
+    source 'credentials.properties.erb'
+    variables({
+        :adminusername => node[:activemq][:adminusername],
+        :adminpassword => node[:activemq][:adminpassword],
+        :brokerusername => node[:activemq][:brokerusername],
+        :brokerpassword => node[:activemq][:brokerpassword],
+    })
     only_if {node.activemq.pwdencyenabled == 'false'}
+    mode 0644
 end
 
 template "#{activemq_home}/conf/credentials-enc.properties" do

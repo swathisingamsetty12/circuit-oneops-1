@@ -16,7 +16,8 @@ attribute 'queuename',
           :format => {
               :help => 'Queue Name',
               :category => '1.Destination',
-             :order => 1,
+              :editable => false,
+              :order => 1,
           }
 
 attribute 'destinationtype',
@@ -47,6 +48,7 @@ attribute 'permission',
           :format => {
             :help => 'User permissions. eg (username:permission). Valid values for permissions are R for READ, W for WRITE and RW ReadWrite',
             :category => '2.Permissions',
+            :pattern  => [["Read", "R"], ["Write", "W"], ["Read and Write", "RW"]] ,
             :order => 1
           }
 
@@ -56,8 +58,18 @@ attribute 'destinationpolicy',
          :default => "",
          :format => {
            :help => 'Define destination policy specifically for this queue',
-           :category => '3.DestinationPolicy',
+           :category => '3.Advanced',
            :order => 1
+         }
+
+attribute 'virtualdestination',
+         :description => "Composite Queue Definition",
+         :data_type => "text",
+         :default => "",
+         :format => {
+            :help => 'Composite Queue definition',
+            :category => '3.Advanced',
+            :order => 2
          }
 
 recipe 'purge',  'Purge ActiveMQ queue'

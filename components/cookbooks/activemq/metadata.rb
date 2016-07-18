@@ -210,6 +210,9 @@ attribute 'customplugins',
 attribute 'kahadbattributes',
       :description => "Kahadb Attributes",
       :data_type => "hash",
+      :default => '{
+             "enableJournalDiskSyncs":"true"
+      }',
       :format => {
         :help => 'Configuration attributes for Kahadb element. ',
         :category => '2.Administration',
@@ -227,6 +230,16 @@ attribute 'brokerattributes',
         :help => 'Configuration attributes for Broker.',
         :category => '2.Administration',
         :order => 14
+      }
+
+attribute 'wrapperjavaprop',
+      :description => "Additional Java parameters",
+      :data_type => "array",
+      :default => '["-Dorg.apache.activemq.UseDedicatedTaskRunner=true","-Djava.util.logging.config.file=logging.properties", "-Djava.security.auth.login.config=%ACTIVEMQ_CONF%/login.config","-Dactivemq.home=%ACTIVEMQ_HOME%","-Dactivemq.base=%ACTIVEMQ_BASE%","-Dactivemq.conf=%ACTIVEMQ_CONF%", "-Dactivemq.data=%ACTIVEMQ_DATA%", "-Dcom.sun.management.jmxremote.authenticate=true" ]',
+      :format => {
+        :help => 'Additional Java parameters to pass to Java when it is launched. These are not parameters for your application, but rather parameters for the JVM. ',
+        :category => '2.Administration',
+        :order => 15
       }
 
 attribute 'initmemory',
