@@ -219,7 +219,9 @@ class ReplicaDistributor
     shard_ip_list = []
     cloudid_to_replica_count_map.each do |cloudid, replica_count|
       update_domain_details_map = fault_domain_to_update_domain_map[cloudid]
-      shard_ip_list.push select_replicas_from_update_domains(update_domain_details_map, replica_count)
+      if (update_domain_details_map != nil && !update_domain_details_map.empty?)
+        shard_ip_list.push select_replicas_from_update_domains(update_domain_details_map, replica_count)
+      end
     end
     return shard_ip_list.flatten
   end
