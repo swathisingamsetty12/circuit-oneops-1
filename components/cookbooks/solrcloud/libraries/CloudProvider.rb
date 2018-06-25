@@ -264,9 +264,91 @@ class CloudProvider
     return cloud_id_to_name_map
   end
 
+  # This method returns the below detailed map of cores hosted on each node(IP address)
+  # faultdomain_to_updatedomain_ip_cores_map: {"FD1":{"UD1":{"10.74.2.103":["cart, shard1, core_node1"]}},"FD0":{"UD0":{"10.74.2.31":["cart, shard2, core_node2"]}}}
+  def get_faultdomain_to_updatedomain_ip_cores_map(compute_ip_to_cloud_domain_map, clusterstatus_resp_obj)
+    # Capture a detailed information about UDs, IPs, Cores per fault domain
+    collections = clusterstatus_resp_obj["cluster"]["collections"]
+    faultdomain_to_updatedomain_ip_cores_map = Hash.new
+    collections.each { |coll_name, coll_info|
+      shards = coll_info["shards"]
+      shards.each { |shard_name, shard_info|
+        replicas = shard_info["replicas"]
+        replicas.each { |replica_name, replica_info|
+          node_name = replica_info["node_name"]
+          ip = node_name.slice(0, node_name.index(':'))
+          cloud_domain = compute_ip_to_cloud_domain_map[ip]
+          fault_domain = cloud_domain.split('___')[0]
+          update_domain = cloud_domain.split('___')[1]
+          if !faultdomain_to_updatedomain_ip_cores_map.has_key?"FD#{fault_domain}"
+            faultdomain_to_updatedomain_ip_cores_map["FD#{fault_domain}"] = Hash.new
+          end
+          if !faultdomain_to_updatedomain_ip_cores_map["FD#{fault_domain}"].has_key?"UD#{update_domain}"
+            faultdomain_to_updatedomain_ip_cores_map["FD#{fault_domain}"]["UD#{update_domain}"] = Hash.new
+          end
+          if !faultdomain_to_updatedomain_ip_cores_map["FD#{fault_domain}"]["UD#{update_domain}"].has_key?ip
+            faultdomain_to_updatedomain_ip_cores_map["FD#{fault_domain}"]["UD#{update_domain}"][ip] = []
+          end
+          faultdomain_to_updatedomain_ip_cores_map["FD#{fault_domain}"]["UD#{update_domain}"][ip].push(coll_name + ", " + shard_name + ", " + replica_name)
+        }
+      }
+    }
+    return faultdomain_to_updatedomain_ip_cores_map
+  end
+
+  # This method prints the summary and detailed information about UDs, IPs, Cores
+  def print_faultdomain_to_updatedomain_summary_map(faultdomain_to_updatedomain_ip_cores_map)
+    fault_domain_map = Hash.new
+    faultdomain_to_updatedomain_map = Hash.new
+    cluster_cores = 0
+    cluster_ips = 0
+    # Capture a summary information about UDs, IPs, Cores per fault domain and IPs, Cores per update domain in each fault domain
+    faultdomain_to_updatedomain_ip_cores_map.each { |fault_domain, update_domain_ip_cores_map|
+      cores_per_cloud = 0
+      cloud_cores = 0
+      cloud_ips = 0
+      update_domain_ip_cores_map.each { |update_domain, ip_cores_map|
+        cores_per_update_domain = 0
+        ip_cores_map.each { |ip, cores|
+          cores_per_update_domain = cores_per_update_domain + cores.length
+        }
+        if !faultdomain_to_updatedomain_map.has_key?fault_domain
+          faultdomain_to_updatedomain_map[fault_domain] = Hash.new
+        end
+        if !faultdomain_to_updatedomain_map[fault_domain].has_key?update_domain
+          faultdomain_to_updatedomain_map[fault_domain][update_domain] = Hash.new
+        end
+        # Capture total no IPs and Cores per fault domain and update domain
+        faultdomain_to_updatedomain_map[fault_domain][update_domain] = "IPs:#{ip_cores_map.keys.size}, CORES:#{cores_per_update_domain}"
+        cloud_cores = cloud_cores + cores_per_update_domain
+        cloud_ips = cloud_ips + ip_cores_map.keys.size
+      }
+      cluster_cores = cluster_cores + cloud_cores
+      cluster_ips = cluster_ips + cloud_ips
+      if !fault_domain_map.has_key?fault_domain
+        fault_domain_map[fault_domain] = Hash.new
+      end
+      # Capture total no UDs, IPs and Cores per fault domain
+      fault_domain_map[fault_domain] = "UDs:#{update_domain_ip_cores_map.keys.size}, IPs:#{cloud_ips}, CORES:#{cloud_cores}"
+    }
+
+    # Show both the summary and the detailed information as both are helpful for verification
+    # Ex: fault_domain_map: {"FD0":"UDs:2, IPs:2, CORES:4","FD1":"UDs:1, IPs:1, CORES:2","FD2":"UDs:1, IPs:1, CORES:2"}
+    Chef::Log.info("Verify fault_domain_map: #{fault_domain_map.to_json}")
+    # Ex: faultdomain_to_updatedomain_map: {"FD0":{"UD3":"IPs:1, CORES:2","UD0":"IPs:1, CORES:2"},"FD1":{"UD1":"IPs:1, CORES:2"},"FD2":{"UD2":"IPs:1, CORES:2"}}
+    Chef::Log.info("Verify faultdomain_to_updatedomain_map: #{faultdomain_to_updatedomain_map.to_json}")
+    # Ex: faultdomain_to_updatedomain_ip_cores_map: {"FD1":{"UD1":{"10.74.2.103":["item, shard1, core_node1","cart, shard2, core_node2"]}},
+    # "FD0":{"UD3":{"10.74.2.31":["item, shard2, core_node3","cart, shard1, core_node4"]},"UD0":{"10.74.2.102":["item, shard3, core_node5","cart, shard3, core_node6"]}},
+    # "FD2":{"UD2":{"10.74.2.33":["cart, shard1, core_node7","cart, shard3, core_node8"]}}}
+    Chef::Log.info("Verify faultdomain_to_updatedomain_ip_cores_map: #{faultdomain_to_updatedomain_ip_cores_map.to_json}")
+  end
+
   # Shows a summary of the allocations done for all collections
   def show_summary(compute_ip_to_cloud_domain_map, clusterstatus_resp_obj)
-    if (@cloud_provider != "azure")
+    if (@cloud_provider == "azure")
+      faultdomain_to_updatedomain_ip_cores_map = get_faultdomain_to_updatedomain_ip_cores_map(compute_ip_to_cloud_domain_map, clusterstatus_resp_obj)
+      print_faultdomain_to_updatedomain_summary_map(faultdomain_to_updatedomain_ip_cores_map)
+    else
       cloud_ip_cores = Hash.new
       @zone_to_compute_ip_map.each { |cloud_name, computes|
         cloud_ip_cores[cloud_name] = Hash.new
@@ -305,9 +387,6 @@ class CloudProvider
       # Ex: Verify cloud_ip_cores => {"prod-cdc5":{"ip_11":["qw, shard1, core_node3"],"ip_22":["qw, shard2, core_node6"],"ip_33":[qw, shard2, core_node5]},
       # "prod-cdc6":{"ip21":["qw, shard1, core_node1"],"ip22":["qw, shard1, core_node2"],"ip23":["qw, shard2, core_node4"]}
       Chef::Log.info("Verify cloud_ip_cores => #{cloud_ip_cores.to_json}")
-
-    else
-      Chef::Log.info("Show summary API is not implemented for Azure Cloud Provider yet.")
     end
   end
 
