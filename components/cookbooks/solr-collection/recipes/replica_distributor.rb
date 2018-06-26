@@ -215,12 +215,16 @@ class ReplicaDistributor
   # cloudid_to_replica_count_map => {1 => 3, 2 => 2}, meaning select 3 ips from cloudid/fault_domain 1, & 2 from cloudid/fault_domain 2
   # Available cloudif to update domain to list of ip maps
   # ex. [["cloud1",{"update_domain1":["ip1", "ip3"]},["cloud2",{"update_domain1":["ip2", "ip4"]]
-  def select_replicas_from_clouds(cloudid_to_replica_count_map, fault_domain_to_update_domain_map)
+  def select_replicas_from_clouds(shard_num, cloudid_to_replica_count_map, fault_domain_to_update_domain_map)
     shard_ip_list = []
     cloudid_to_replica_count_map.each do |cloudid, replica_count|
       update_domain_details_map = fault_domain_to_update_domain_map[cloudid]
-      if (update_domain_details_map != nil && !update_domain_details_map.empty?)
-        shard_ip_list.push select_replicas_from_update_domains(update_domain_details_map, replica_count)
+      if replica_count > 0
+        if (update_domain_details_map != nil && !update_domain_details_map.empty?)
+          shard_ip_list.push select_replicas_from_update_domains(update_domain_details_map, replica_count)
+        else
+          Chef::Log.error("IPs are not available in cloud : #{cloudid}/fault domain FD#{cloudid}. Unable to select #{replica_count} replica/s for shard#{shard_num}.")
+        end
       end
     end
     return shard_ip_list.flatten
@@ -336,9 +340,14 @@ class ReplicaDistributor
       puts "cloud_to_update_domain_ips_map_sorted after using #{used_ip_list}"
       puts "#{cloud_to_update_domain_ips_map_sorted}"
 
-      ip_list = select_replicas_from_clouds(cloud_to_replica_count, cloud_to_update_domain_ips_map_sorted)
+      ip_list = select_replicas_from_clouds(shard_num, cloud_to_replica_count, cloud_to_update_domain_ips_map_sorted)
       ip_list.flatten!
       puts "shard_num : #{shard_num} ip list : #{ip_list}"
+
+      if ip_list.length < replicas
+        replicas_to_be_added = replicas - ip_list.length
+        Chef::Log.error("Shard #{shard_num} has #{replicas_to_be_added} replica/s less than replication factor. We should add replicas manually.")
+      end
 
       #mark these ips as used so that it will not be reconsidered again while adding replicas
       used_ip_list.push ip_list
