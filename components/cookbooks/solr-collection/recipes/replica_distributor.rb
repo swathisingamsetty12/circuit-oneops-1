@@ -223,7 +223,7 @@ class ReplicaDistributor
         if (update_domain_details_map != nil && !update_domain_details_map.empty?)
           shard_ip_list.push select_replicas_from_update_domains(update_domain_details_map, replica_count)
         else
-          Chef::Log.error("IPs are not available in cloud : #{cloudid}/fault domain FD#{cloudid}. Unable to select #{replica_count} replica/s for shard#{shard_num}.")
+          Chef::Log.error("Unable to select replicas for shard#{shard_num} from cloud : #{cloudid}/fault domain FD#{cloudid} because VMs/IPs are not available.")
         end
       end
     end
