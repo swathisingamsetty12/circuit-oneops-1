@@ -331,7 +331,11 @@ class CloudProvider
       # Capture total no UDs, IPs and Cores per fault domain
       fault_domain_map[fault_domain] = "UDs:#{update_domain_ip_cores_map.keys.size}, IPs:#{cloud_ips}, CORES:#{cloud_cores}"
     }
+    return fault_domain_map, faultdomain_to_updatedomain_map, faultdomain_to_updatedomain_ip_cores_map
+  end
 
+  # This method prints the summary and detailed maps
+  def print_faultdomain_to_updatedomain_summary(fault_domain_map, faultdomain_to_updatedomain_map, faultdomain_to_updatedomain_ip_cores_map)
     # Show both the summary and the detailed information as both are helpful for verification
     # Ex: fault_domain_map: {"FD0":"UDs:2, IPs:2, CORES:4","FD1":"UDs:1, IPs:1, CORES:2","FD2":"UDs:1, IPs:1, CORES:2"}
     Chef::Log.info("Verify fault_domain_map: #{fault_domain_map.to_json}")
@@ -347,7 +351,8 @@ class CloudProvider
   def show_summary(compute_ip_to_cloud_domain_map, clusterstatus_resp_obj)
     if (@cloud_provider == "azure")
       faultdomain_to_updatedomain_ip_cores_map = get_faultdomain_to_updatedomain_ip_cores_map(compute_ip_to_cloud_domain_map, clusterstatus_resp_obj)
-      print_faultdomain_to_updatedomain_summary_map(faultdomain_to_updatedomain_ip_cores_map)
+      fault_domain_map, faultdomain_to_updatedomain_map = get_faultdomain_to_updatedomain_summary_map(faultdomain_to_updatedomain_ip_cores_map)
+      print_faultdomain_to_updatedomain_summary(fault_domain_map, faultdomain_to_updatedomain_map, faultdomain_to_updatedomain_ip_cores_map)
     else
       cloud_ip_cores = Hash.new
       @zone_to_compute_ip_map.each { |cloud_name, computes|
