@@ -70,7 +70,6 @@ module VolumeComponent
     attr_accessor :storage_id,
                   :planned_device_id,
                   :device_prefix,
-                  :assigned_device_id,
                   :status,
                   :is_attached,
                   :object
@@ -95,7 +94,6 @@ module VolumeComponent
                        end
 
       execute_command("touch /opt/oneops/storage_devices/#{@storage_id}", true)
-      get_assigned_device_id
       @status = nil
       @is_attached = false
       @object = nil
@@ -164,16 +162,33 @@ module VolumeComponent
       is_attached
     end
 
-    def get_assigned_device_id
+    def assigned_device_id
       assigned_device_id = nil
+      # 1. Check in the service file
       line = execute_command("cat /opt/oneops/storage_devices/#{@storage_id}", true).stdout.chop
-      if line.split(':').size > 1
-        assigned_device_id = line.split(':')[1]
-      else
-        assigned_device_id = nil
+      assigned_device_id = line.split(':')[1] if line.split(':').size > 1
+
+      # 2. If not found in 1, do an API call to provider to get the device
+      if assigned_device_id.nil?
+        volume = get_object_from_provider
+        if @storage.storage_provider =~ /cinder|openstack/ &&
+          !volume.attachments.nil? && volume.attachments.size > 0 &&
+          volume.attachments[0].has_key?('device')
+          assigned_device_id = volume.attachments[0]['device']
+        elsif @storage.storage_provider =~ /azure/
+          lun = @storage.compute.data_disks.detect{ |dd| (dd.name == @storage_id) }.lun
+          assigned_device_id = execute_command("readlink -f /dev/disk/azure/scsi*/lun#{lun}", true).stdout.chop
+        end
+
+        # Update the service file
+        set_assigned_device_id(assigned_device_id) if assigned_device_id
       end
-      @assigned_device_id = assigned_device_id
+
       assigned_device_id
+    end
+
+    def set_assigned_device_id(assigned_device_id)
+      execute_command("echo '#{@planned_device_id}:#{assigned_device_id}' > /opt/oneops/storage_devices/#{@storage_id}", true)
     end
 
     def attach (max_retry_count = 5, sleep_sec = 10)
@@ -221,24 +236,26 @@ module VolumeComponent
       # a) we capture assigned device id from /dev
       # b) attached status from provider is true
       cnt = 0
-      while cnt < max_retry_count && !get_assigned_device_id
+      device = nil
+      while cnt < max_retry_count && !device
         sleep sleep_sec
 
         device_list = execute_command("ls -1 #{@device_prefix}*").stdout.split("\n")
         if (orig_device_list.size + 1) == device_list.size
-          @assigned_device_id = (device_list - orig_device_list).first
-          execute_command("echo '#{@planned_device_id}:#{@assigned_device_id}' > /opt/oneops/storage_devices/#{@storage_id}", true)
-          Chef::Log.info("Device_id has been assigned to: #{@assigned_device_id}")
+          device = (device_list - orig_device_list).first
+          set_assigned_device_id(device) if device
+          Chef::Log.info("Device_id has been assigned to: #{device}")
         end
         cnt += 1
       end
 
       #iterated max_retry_count time but conditions are still not met - raise an error
-      unless get_is_attached && @assigned_device_id
+      device = assigned_device_id
+      unless get_is_attached && device
         Chef::Log.error("Original device list: #{orig_device_list.inspect.gsub("\n"," ")}, latest device list: #{device_list.inspect.gsub("\n"," ")} ")
         exit_with_error("Device_id could not be assigned in #{max_retry_count.to_s} attempts. ")
       end
-      Chef::Log.info("Storage device #{@storage_id} has been successfully attached to: #{@assigned_device_id} in #{Time.now.to_i - start_time} seconds.")
+      Chef::Log.info("Storage device #{@storage_id} has been successfully attached to: #{device} in #{Time.now.to_i - start_time} seconds.")
     end
 
     def detach_base (max_retry_count = 10, sleep_sec = 10)

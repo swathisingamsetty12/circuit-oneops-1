@@ -109,6 +109,28 @@ attribute 'raid_options',
           ['RAID1','RAID 1']]}
   }
 
+ attribute 'control_skip_vol',
+  :description => 'Governs skip_vol attribute visibility in UI',
+  :default => 'false',
+  :format => {
+      :help => 'Azure only! Check if skip_vol checkbox should be editable in UI',
+      :category => '1.Global',
+      :form => { 'field' => 'checkbox' },
+      :filter   => { 'all' => { 'visible' => 'false' } },
+      :order => 5
+  }
+
+attribute 'skip_vol',
+  :description => 'Place on root',
+  :default => 'false',
+  :format => {
+      :help => 'Azure only! Skip volume processing and just mount the folder on root.',
+      :category => '1.Global',
+      :form => { 'field' => 'checkbox' },
+      :filter   => { 'all' => { 'visible' => 'control_skip_vol:eq:true' } },
+      :order => 6
+  }
+
 recipe "repair", "Repair Volume"
 
 recipe "log-grep",

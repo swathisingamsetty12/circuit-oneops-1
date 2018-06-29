@@ -13,6 +13,14 @@ service "kafka" do
   action :start
 end
 
+service "jmxtrans" do
+  provider Chef::Provider::Service::Init
+  service_name 'jmxtrans'
+  supports  :restart => true, :status => true, :stop => true, :start => true
+  action :start
+end
+
+
 ruby_block "kafka_running" do
   Chef::Resource::RubyBlock.send(:include, Kafka::StartUtil)
   block do

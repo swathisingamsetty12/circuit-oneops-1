@@ -189,7 +189,7 @@ def check_solr_process_status_based_on_core_health(host_ip, solr_port_no)
     end
   end
 
-  return local_cores, down_cores
+  return local_cores, down_cores, recovering_cores
 end
 
 def solr_rest_api(host, port, url)

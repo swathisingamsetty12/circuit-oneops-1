@@ -142,3 +142,4 @@ attribute 'gslb_map',
 
 recipe "repair", "Repair"
 recipe "gslbstatus", "GSLB Status"
+recipe "migrate", "Migrate GSLB to Torbit"

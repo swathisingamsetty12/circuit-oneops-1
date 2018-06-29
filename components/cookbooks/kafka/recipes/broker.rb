@@ -109,6 +109,14 @@ end
      group "root"
      mode  '0777'
  end
+
+# create "kafka_segment_size.sh" script 
+ template "/usr/local/kafka/bin/kafka_segment_size.sh" do
+     source "kafka_segment_size.sh.erb"
+     owner "root"
+     group "root"
+     mode  '0777'
+ end
  
  # adding permissions so that kafka_logerrs.sh will be executed without erros
  bash "add permissions to kafka_logerrs.sh" do

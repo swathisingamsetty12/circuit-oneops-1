@@ -1,3 +1,6 @@
+# set the proxy if it exists as a cloud var
+Utils.set_proxy(node.workorder.payLoad.OO_CLOUD_VARS)
+
 COOKBOOKS_PATH = "/opt/oneops/inductor/circuit-oneops-1/components/cookbooks"
 
 require 'fog/azurerm'

@@ -16,3 +16,4 @@ Knife
 =====
 
 For a single cookbook sync, use bundle exec knife model sync <cookbook-name>
+

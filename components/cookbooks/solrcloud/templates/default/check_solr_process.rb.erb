@@ -40,16 +40,24 @@ begin
   else
 
     logger.info "Checking cores for ip=#{host_ip}, port=#{port_no}"
-    all_cores_on_this_node, down_cores = check_solr_process_status_based_on_core_health(host_ip, port_no)
+    all_cores_on_this_node, down_cores, recovering_cores = check_solr_process_status_based_on_core_health(host_ip, port_no)
     logger.info "all_cores_on_this_node = #{all_cores_on_this_node.join(', ')}"
     logger.info "down_cores = #{down_cores.join(', ')}"
 
     # Get the active/ recovering cores alone from the available cores. => Remove just the down cores and apply ping on them
     not_down_cores = all_cores_on_this_node - down_cores
+    logger.info "not_down_cores = #{not_down_cores.join(', ')}"
 
     if down_cores.length != 0
-      logger.info "Found down_cores, declaring solr process down"
-      puts solr_down
+      # TODO: Should we check if any other core is active on solr, then do not mark the process as down
+      if recovering_cores == 0
+        logger.info "Found down_cores without any recovering cores. declaring solr process down"
+        puts solr_down
+      else
+        logger.info "Below cores #{recovering_cores.join(', ')} are recovering on this node. So not marking the solrprocess as down"
+        # TODO: check if puts solr_up is needed
+        puts solr_up
+      end
     else
       if (!not_down_cores.empty? && not_down_cores.length != 0)
 
@@ -74,6 +82,10 @@ begin
           logger.info "Did not receive ping=OK for all the up cores, declaring solr process down"
           puts solr_down
         end
+      else
+        logger.info "not_down_cores #{} is empty"
+        # TODO: check if we have to make solr process down in this scenario
+        puts solr_up
       end
     end
   end

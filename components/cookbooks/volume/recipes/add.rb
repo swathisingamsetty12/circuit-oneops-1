@@ -102,6 +102,18 @@ Chef::Log.info("Storage Provider : #{node[:storage_provider_class]}")
 Chef::Log.info("Storage          : #{storage.inspect.gsub("\n",' ')}")
 Chef::Log.info("------------------------------------------------------------")
 
+# Skip processing if azure, and skip_vol flag set to true
+if storage.nil? && token_class =~ /azure/ && rfc_action == 'update' &&
+   rfcCi['ciBaseAttributes']['skip_vol'] == 'true'
+  exit_with_error "'Place on root' attribute cannot be turned off, please consider replacing the compute."
+end
+
+if storage.nil? && token_class =~ /azure/ && attrs[:skip_vol] == 'true'
+  Chef::Log.info("Skipping volume processing due to 'place on root' attribute")
+  directory _mount_point
+  return
+end
+
 package 'lvm2'
 package 'mdadm' do
   not_if{mode == 'no-raid'}
@@ -118,7 +130,9 @@ ruby_block 'create-iscsi-volume-ruby-block' do
 
     storage_devices.each do |storage_device|
       storage_device.attach
-      dev_list += storage_device.assigned_device_id + " " if storage_device.assigned_device_id
+      assigned_device_id = storage_device.assigned_device_id
+      Chef::Log.info("Assigned device id: #{assigned_device_id}")
+      dev_list += assigned_device_id + " " if assigned_device_id
     end
   end
 end

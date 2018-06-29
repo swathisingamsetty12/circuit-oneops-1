@@ -96,8 +96,20 @@ remote_file "#{serviceMeshRootDir}/soa-linkerd-#{meshVersion}.jar" do
 	action :create_if_missing
 end
 
+### Log and rotate
+meshLogRoot = "/log/mesh"
+Chef::Log::info("Creating mesh log directory for service mesh #{meshLogRoot} if not present...")
+directory meshLogRoot do
+  owner 'root'
+  group 'root'
+  mode '0777'
+  recursive true
+  action :create
+end
+Chef::Log::info("Mesh log directory created successfully")
+logRotateOpt = " -log.output=#{meshLogRoot}/mesh.log -log.rollPolicy 50.megabytes -log.rotateCount 3"
+
 ### service mesh daemon ###
-jobLogPath = serviceMeshRootDir + "/service-mesh.log"
 meshLocalPath = "#{serviceMeshRootDir}/soa-linkerd-#{node['service-mesh']['service-mesh-version']}.jar"
 
 Chef::Log::info("Use overridden config yaml? " + node['service-mesh']['use-overridden-yaml'])
@@ -113,7 +125,7 @@ template '/etc/init.d/servicemesh' do
   owner 'root'
   group 'root'
   mode 00755
-  variables(:start_mesh_command => "java -Djava.net.preferIPv4Stack=true -Dsun.net.inetaddr.ttl=60 -XX:+UnlockExperimentalVMOptions -XX:+AggressiveOpts -XX:+UseConcMarkSweepGC -XX:+CMSParallelRemarkEnabled -XX:+CMSClassUnloadingEnabled -XX:+ScavengeBeforeFullGC -XX:+CMSScavengeBeforeRemark -XX:+UseCMSInitiatingOccupancyOnly -XX:CMSInitiatingOccupancyFraction=70 -XX:-TieredCompilation -XX:+UseStringDeduplication -XX:+AlwaysPreTouch -Dcom.twitter.util.events.sinkEnabled=false -Dorg.apache.thrift.readLength=10485760 -Djdk.nio.maxCachedBufferSize=262144 -Dio.netty.threadLocalDirectBufferSize=0 -Dio.netty.recycler.maxCapacity=4096 -Dio.netty.allocator.numHeapArenas=${FINAGLE_WORKERS:-8} -Dio.netty.allocator.numDirectArenas=${FINAGLE_WORKERS:-8} -Dcom.twitter.finagle.netty4.numWorkers=${FINAGLE_WORKERS:-8} -Druntime.context.system.property.override.enabled=true -Druntime.context.appName=#{stratiAppName} #{node['service-mesh']['conf-override']} -jar #{meshLocalPath} #{linkerdConfigPath} > #{jobLogPath} 2>&1 &",
+  variables(:start_mesh_command => "java -Djava.net.preferIPv4Stack=true -Dsun.net.inetaddr.ttl=60 -XX:+UnlockExperimentalVMOptions -XX:+AggressiveOpts -XX:+UseConcMarkSweepGC -XX:+CMSParallelRemarkEnabled -XX:+CMSClassUnloadingEnabled -XX:+ScavengeBeforeFullGC -XX:+CMSScavengeBeforeRemark -XX:+UseCMSInitiatingOccupancyOnly -XX:CMSInitiatingOccupancyFraction=70 -XX:-TieredCompilation -XX:+UseStringDeduplication -XX:+AlwaysPreTouch -Dcom.twitter.util.events.sinkEnabled=false -Dorg.apache.thrift.readLength=10485760 -Djdk.nio.maxCachedBufferSize=262144 -Dio.netty.threadLocalDirectBufferSize=0 -Dio.netty.recycler.maxCapacity=4096 -Dio.netty.allocator.numHeapArenas=${FINAGLE_WORKERS:-8} -Dio.netty.allocator.numDirectArenas=${FINAGLE_WORKERS:-8} -Dcom.twitter.finagle.netty4.numWorkers=${FINAGLE_WORKERS:-8} -Druntime.context.system.property.override.enabled=true -Druntime.context.appName=#{stratiAppName} #{node['service-mesh']['conf-override']} -jar #{meshLocalPath} #{linkerdConfigPath} #{logRotateOpt} 2>&1 &",
             :grep_string_mesh_process => "#{node['service-mesh']['service-mesh-root']}/soa-linkerd-#{node['service-mesh']['service-mesh-version']}.jar ")
 end
 

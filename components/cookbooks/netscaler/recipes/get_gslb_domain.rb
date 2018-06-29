@@ -34,6 +34,15 @@ node.set["gslb_domain"] = gslb_domain.downcase
 
 gslb_config_entry = Array.new
 full_aliases = Array.new
+gslb_config_delete = Array.new
+old_full_aliases = Array.new
+
+session_persistance = false
+lb = node.workorder.payLoad.lb.first
+if lb['ciAttributes']['stickiness'] == 'true'
+    session_persistance = true
+end
+
 if node.workorder.rfcCi.ciAttributes.has_key?("full_aliases")
     if node.workorder.rfcCi.ciAttributes.full_aliases =~ /\*/ && !is_wildcard_enabled(node)
         fail_with_fault "unsupported use of wildcard functinality for this organization"
@@ -45,18 +54,6 @@ if node.workorder.rfcCi.ciAttributes.has_key?("full_aliases")
     end
 end
 
-gslb_config_entry.push(gslb_domain.downcase)
-if !full_aliases.nil?
-    full_aliases.each do |full|
-        Chef::Log.info("full alias dns_name: #{full}")
-        gslb_config_entry.push(full)
-    end
-end
-
-node.set["gslb_config_entry"] = gslb_config_entry
-
-gslb_config_delete = Array.new
-old_full_aliases = Array.new
 if node.workorder.rfcCi.ciBaseAttributes.has_key?("full_aliases")
     if node.workorder.rfcCi.ciBaseAttributes.full_aliases =~ /\*/ && !is_wildcard_enabled(node)
         fail_with_fault "unsupported use of wildcard functinality for this organization"
@@ -68,6 +65,23 @@ if node.workorder.rfcCi.ciBaseAttributes.has_key?("full_aliases")
     end
 end
 
+gslb_config_entry.push(gslb_domain.downcase)
+
+if !full_aliases.nil?
+    if session_persistance
+        full_aliases.each do |full|
+            Chef::Log.info("full alias dns_name to add to gslb config: #{full}")
+            gslb_config_entry.push(full)
+        end
+    else
+        full_aliases.each do |full|
+            Chef::Log.info("full alias dns_name to remove from gslb config: #{full}")
+            gslb_config_delete.push(full)
+        end
+    end
+end
+
+
 if !old_full_aliases.nil?
     old_full_aliases.each do |full|
         Chef::Log.info("full alias dns_name for unbind: #{full}")
@@ -75,4 +89,5 @@ if !old_full_aliases.nil?
     end
 end
 
+node.set["gslb_config_entry"] = gslb_config_entry
 node.set["gslb_config_delete"] = gslb_config_delete

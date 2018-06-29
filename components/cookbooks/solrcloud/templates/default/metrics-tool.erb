@@ -56,7 +56,7 @@ if (graphite_servers != nil && graphite_servers.length > 0)
 
   solrcloud_monitor = SolrMetricsCollector.new('localhost', port_no, nil, false, solr_version, enable_rest_metrics,
                       jmx_medusa_log_file, metric_level, jolokia_port, solr_jmx_port, enable_jmx_metrics, admin_user, admin_password,
-                      graphite_servers, graphite_prefix, oo_env, node_ip, environment_name, oo_dc, graphite_logfiles_path, rotate, log_size)
+                      graphite_servers, graphite_prefix, oo_env, node_ip, environment_name, oo_dc, graphite_logfiles_path, rotate, log_size, solr_log_path)
 
   solrcloud_monitor.collect_all_stats
 end
@@ -77,7 +77,7 @@ end
 
 medusa_reporter = SolrMetricsCollector.new('localhost', port_no, medusa_log_file, true, solr_version, enable_rest_metrics,
 jmx_medusa_log_file, metric_level, jolokia_port, solr_jmx_port, enable_jmx_metrics, admin_user, admin_password, nil,
-nil, nil, nil, nil, nil, graphite_logfiles_path, rotate, log_size, solr_log_path)
+nil, nil, node_ip, nil, nil, graphite_logfiles_path, rotate, log_size, solr_log_path)
 
 medusa_reporter.collect_all_stats
 

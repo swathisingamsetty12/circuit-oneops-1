@@ -17,6 +17,8 @@ log_echo () {
 node_status_log_file="/opt/solr/log/medusa_stats.log"
 jmx_log_file="/opt/solr/log/jmx_medusa_stats.log"
 
+jmx_port=<%= node["jmx_port"] %>
+
 jmx_log_file_modified_time=$(date -r $jmx_log_file)
 node_status_log_file_modified_time=$(date -r $node_status_log_file)
 
@@ -44,6 +46,14 @@ jolokia_process=$(ps aux | grep "joloki[a]")
 
 # Check if Jolokia is up and running
 if [[ $jolokia_process =~ "-Djetty.base=" ]] ; then
+
+  # Check if jolokia_proxy has a lot of connections ESTABLISHED. If yes, then restart the jolokia_proxy.
+  established_jolokia_connections=$(netstat -an | grep ESTABLISHED | grep $jmx_port | wc -l)
+  if [ "$established_jolokia_connections" -gt 20 ] ; then
+    echo "Restarting jolokia_proxy as the number of established connections is $established_jolokia_connections"
+    sudo service jolokia_proxy restart
+  fi
+
 
   # Check if log files are not empty
   if [[ ! -s $node_status_log_file ]] ; then
@@ -127,7 +137,9 @@ if [[ $jolokia_process =~ "-Djetty.base=" ]] ; then
   fi
 
 else
-  echo "Jolokia Proxy is down |up=0"
+  echo "Jolokia Proxy is down, so it will get started automatically now |up=0"
+
+  sudo service jolokia_proxy start
 fi
 
 
