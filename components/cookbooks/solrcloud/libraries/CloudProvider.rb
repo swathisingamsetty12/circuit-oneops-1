@@ -296,7 +296,7 @@ class CloudProvider
     return faultdomain_to_updatedomain_ip_cores_map
   end
 
-  # This method prints the summary and detailed information about UDs, IPs, Cores
+  # This method returns the summary and detailed information about UDs, IPs, Cores
   def print_faultdomain_to_updatedomain_summary_map(faultdomain_to_updatedomain_ip_cores_map)
     fault_domain_map = Hash.new
     faultdomain_to_updatedomain_map = Hash.new
